@@ -3,24 +3,27 @@
 
 local module = {}
 
-local tempPin = 1	-- DS18B20
-local valvePin = 2	-- relais for valve
+local tempPin = 1	-- DS18B20 (GPIO_05)
+local valvePin = 2	-- relais for valve (GPIO_04)
+local valvePin2 = 7	-- valve #2 (GPIO_13)
 
 local addr		-- address of 1wire DS18B20
 
-local valveOpen = false	-- valve status
+local valveOpen = false		-- valve status
+local valveOpen2 = false	-- valve2 status
 
 
 function module.setup()
 
-  --ensure that ADC is reading pin and not internal voltage
-  if adc.force_init_mode(adc.INIT_ADC) then
+  --ensure that ADC is reading internal voltage
+  if adc.force_init_mode(adc.INIT_VDD33) then
     node.restart()
     return  -- restart is scheduled, just wait for reboot
   end
 
   -- setup ralais pin
   gpio.mode(valvePin, gpio.OUTPUT)
+  gpio.mode(valvePin2, gpio.OUTPUT)
 
   -- setup DS18B20 wire
   ow.setup(tempPin)
@@ -52,16 +55,12 @@ function module.setup()
 
   -- setup timer for valve closing
   tmr.register(config.CLOSEVALVE, config.VALVE_TO*1000, tmr.ALARM_SEMI, module.closeValve)
+  tmr.register(config.CLOSEVALVE2, config.VALVE_TO2*1000, tmr.ALARM_SEMI, module.closeValve2)
   -- just in case.... close valve
   module.closeValve()
+  module.closeValve2()
 end
 
-
-function module.readSoilHumidity()
-  local value
-  value = adc.read(0)	-- work needed to calibrate and average
-  return value
-end
 
 
 function module.openValve()
@@ -70,6 +69,15 @@ function module.openValve()
 
   -- close valve after timeout
   tmr.start(config.CLOSEVALVE)
+end
+
+
+function module.openValve2()
+  gpio.write(valvePin2, gpio.HIGH)
+  valveOpen2 = true
+
+  -- close valve after timeout
+  tmr.start(config.CLOSEVALVE2)
 end
 
 
@@ -82,8 +90,27 @@ function module.closeValve()
 end
 
 
+function module.closeValve2()
+  -- stop timer
+  tmr.stop(config.CLOSEVALVE2)
+
+  gpio.write(valvePin2, gpio.LOW)
+  valveOpen2 = false
+end
+
+
 function module.isValveOpen()
   return valveOpen
+end
+
+
+function module.isValveOpen2()
+  return valveOpen2
+end
+
+
+function module.readVoltage()
+  return adc.readvdd33()
 end
 
 

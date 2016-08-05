@@ -18,6 +18,8 @@ local function wifi_wait_ip()
 end
 
 local function wifi_start(list_aps)
+  local key
+  local value
   if list_aps then
     for key,value in pairs(list_aps) do
       if config.SSID and config.SSID[key] then
@@ -38,6 +40,7 @@ end
 
 function module.start()
   print("Configuring Wifi ...")
+  wifi.sleeptype(wifi.LIGHT_SLEEP)	-- lower power consumption
   wifi.setmode(wifi.STATION)
   wifi.sta.getap(wifi_start)
 end
